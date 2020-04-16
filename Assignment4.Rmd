@@ -4,15 +4,12 @@ author: "Riccardo Fusaroli"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+``` {r Setup, include=FALSE}
+library(pacman)
+pacman::p_load(tidyverse)
 
-
-```{r loading packages}
-
-library(tidyverse)
-pacman::p_load(metafor, brms)
+data <- read.csv("a4_data.csv", header = TRUE)
+meta_analysis_data <- read.table(file = 'a4_MetaAnalysis_data.tsv', sep = '\t', header = TRUE)
 
 ```
 
@@ -20,21 +17,32 @@ pacman::p_load(metafor, brms)
 ## Assignment 4
 
 In this assignment we do the following:
-- we run a Bayesian meta-analysis of pitch variability in ASD, based on previously published literature
-- we analyze pitch variability in ASD in two new studies using both a conservative and a meta-analytic prior
-- we assess the difference in model quality and estimates using the two priors.
+  - we run a Bayesian meta-analysis of pitch variability in ASD, based on previously published literature
+  - we analyze pitch variability in ASD in two new studies using both a conservative and a meta-analytic prior
+  - we assess the difference in model quality and estimates using the two priors.
 
-The questions you need to answer are: What are the consequences of using a meta-analytic prior? Evaluate the models with conservative and meta-analytic priors. Discuss the effects on estimates. Discuss the effects on model quality. Discuss the role that meta-analytic priors should have in scientific practice. Should we systematically use them? Do they have drawbacks? Should we use them to complement more conservative approaches? How does the use of meta-analytic priors you suggest reflect the skeptical and cumulative nature of science?
+The questions you need to answer are:
+  - What are the consequences of using a meta-analytic prior?
+  - Evaluate the models with conservative and meta-analytic priors.
+  - Discuss the effects on estimates. Discuss the effects on model quality.
+  - Discuss the role that meta-analytic priors should have in scientific practice.
+  - Should we systematically use them?
+  - Do they have drawbacks?
+  - Should we use them to complement more conservative approaches?
+  - How does the use of meta-analytic priors you suggest reflect the skeptical and cumulative nature of science?
+
+
 
 ### Step by step suggestions
 
 Step 1: Perform a meta-analysis of pitch variability from previous studies of voice in ASD
-- the data is available as Ass4_MetaAnalysisData.tsv
-- You should calculate Effect size (cohen's d) and Standard Error (uncertainty in the Cohen's d) per each study, using escalc() from the metafor package (also check the livecoding intro)
-- N.B. we're only interested in getting a meta-analytic effect size for the meta-analytic prior (and not e.g. all the stuff on publication bias). See a brms tutorial here: https://vuorre.netlify.com/post/2016/09/29/meta-analysis-is-a-special-case-of-bayesian-multilevel-modeling/ The formula is EffectSize | se(StandardError) ~ 1 + (1 | Paper). Don't forget prior definition, model checking, etc.
-- Write down the results of the meta-analysis in terms of a prior for step 2.
+  - the data is available as Ass4_MetaAnalysisData.tsv
+  - You should calculate Effect size (cohen's d) and Standard Error (uncertainty in the Cohen's d) per each study, using escalc() from the metafor package (also check the livecoding intro)
+  - N.B. we're only interested in getting a meta-analytic effect size for the meta-analytic prior (and not e.g. all the stuff on publication bias). See a brms tutorial here:
+    https://vuorre.netlify.com/post/2016/09/29/meta-analysis-is-a-special-case-of-bayesian-multilevel-modeling/ The formula is EffectSize | se(StandardError) ~ 1 + (1 | Paper). Don't forget prior definition, model checking, etc.
+    - Write down the results of the meta-analysis in terms of a prior for step 2.
 
-```{r}
+```{r Part 1, echo=FALSE}
 library(readr)  # part of tidyverse
 
 MA_d <- read_delim("Ass4_MetaAnalysisData.tsv", delim = "\t") #meta analysis data 
@@ -130,32 +138,53 @@ summary(MA_m1)
 ```
 
 
-
 Step 2: Analyse pitch variability in ASD in two new studies for which you have access to all the trials (not just study level estimates)
-- the data is available as Ass4_data.csv. Notice there are 2 studies (language us, and language dk), multiple trials per participant, and a few different ways to measure pitch variability (if in doubt, focus on pitch IQR, interquartile range of the log of fundamental frequency)
-- Also, let's standardize the data, so that they are compatible with our meta-analytic prior (Cohen's d is measured in SDs).
-- Is there any structure in the dataset that we should account for with random/varying effects? How would you implement that? Or, if you don't know how to do bayesian random/varying effects or don't want to bother, is there anything we would need to simplify in the dataset?
+  - the data is available as Ass4_data.csv. Notice there are 2 studies (language us, and language dk), multiple trials per participant, and a few different ways to measure pitch variability (if in doubt, focus on pitch IQR, interquartile range of the log of fundamental frequency)
+  - Also, let's standardize the data, so that they are compatible with our meta-analytic prior (Cohen's d is measured in SDs).
+  - Is there any structure in the dataset that we should account for with random/varying effects? How would you implement that? Or, if you don't know how to do bayesian random/varying effects or don't want to bother, is there anything we would need to simplify in the dataset?
+
+``` {r Part 2, echo=FALSE}
+
+```
+
 
 Step 3: Build a regression model predicting Pitch variability from Diagnosis.
-- how is the outcome distributed? (likelihood function). NB. given we are standardizing, and the meta-analysis is on that scale, gaussian is not a bad assumption. Lognormal would require us to convert the prior to that scale.
-- how are the parameters of the likelihood distribution distributed? Which predictors should they be conditioned on? Start simple, with Diagnosis only. Add other predictors only if you have the time and energy!
-- use a skeptical/conservative prior for the effects of diagnosis. Remember you'll need to motivate it.
-- Evaluate model quality. Describe and plot the estimates. 
+  - how is the outcome distributed? (likelihood function). NB. given we are standardizing, and the meta-analysis is on that scale, gaussian is not a bad assumption. Lognormal would require us to convert the prior to that scale.
+  - how are the parameters of the likelihood distribution distributed? Which predictors should they be conditioned on? Start simple, with Diagnosis only. Add other predictors only if you have the time and energy!
+  - use a skeptical/conservative prior for the effects of diagnosis. Remember you'll need to motivate it.
+  - Evaluate model quality. Describe and plot the estimates. 
+
+``` {r Part 3, echo=FALSE}
+
+```
+
 
 Step 4: Now re-run the model with the meta-analytic prior
-- Evaluate model quality. Describe and plot the estimates. 
+  - Evaluate model quality. Describe and plot the estimates. 
+
+
+``` {r Part 4, echo=FALSE}
+
+```
 
 Step 5: Compare the models
-- Plot priors and posteriors of the diagnosis effect in both models
-- Compare posteriors between the two models
-- Compare the two models (LOO)
-- Discuss how they compare and whether any of them is best.
+  - Plot priors and posteriors of the diagnosis effect in both models
+  - Compare posteriors between the two models
+  - Compare the two models (LOO)
+  - Discuss how they compare and whether any of them is best.
+
+
+``` {r Part 5, echo=FALSE}
+
+```
 
 Step 6: Prepare a nice write up of the analysis and answer the questions at the top.
 
-Optional step 7: how skeptical should a prior be?
-- Try different levels of skepticism and compare them using LOO.
 
-Optional step 8: Include other predictors
-- Do age, gender and education improve the model?
-- Should they be main effects or interactions?
+
+
+
+
+
+
+
