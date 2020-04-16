@@ -5,11 +5,24 @@ output: html_document
 ---
 
 ``` {r Setup, include=FALSE}
-library(pacman)
-pacman::p_load(tidyverse)
 
-d <- read.csv("a4_data.csv", header = TRUE)
+# loading libraries
+library(pacman)
+pacman::p_load(tidyverse, metafor, brms, readr)
+
+# loading data
+d <- read_csv("Ass4_data.csv")
 MA_d <- read_delim("Ass4_MetaAnalysisData.tsv", delim = "\t")
+
+# setup randomization options
+set.seed(123)
+
+# Restore the models
+MA_m <- readRDS(file = "models/MA_m.rds")
+MA_m0 <- readRDS(file = "models/MA_m0.rds")
+MA_m1 <- readRDS(file = "models/MA_m1.rds")
+MA_prior <- readRDS(file = "models/MA_prior.rds")
+pitch_skeptic_m1 <- readRDS(file = "models/pitch_skeptic_m1.rds")
 
 ```
 
@@ -43,15 +56,14 @@ Step 1: Perform a meta-analysis of pitch variability from previous studies of vo
     - Write down the results of the meta-analysis in terms of a prior for step 2.
 
 ```{r Part 1, echo=FALSE}
-library(readr)  # part of tidyverse
 
-#ASD(TD)_N - how many ASD(TD) participant
+# ASD(TD)_N - how many ASD(TD) participant
 
-#when talking about pitch there is no difference between Hz and log scale
+# when talking about pitch there is no difference between Hz and log scale
 
-#PitchMeanASDvsTD is if it significant higher or lower or NS (not significant)
+# PitchMeanASDvsTD is if it significant higher or lower or NS (not significant)
 
-#making sure all our valuables are possible to use - no one is characters by accident 
+# making sure all our valuables are possible to use - no one is characters by accident 
 
 MA_d <- MA_d %>%
   mutate(
@@ -85,9 +97,8 @@ MA_d <- escalc(measure = "SMD",
 
 #calculating the SE of the effectsize
 MA_d <- MA_d %>% 
-  mutate(
-    StandardError = sqrt(vi)
-  ) %>% rename(EffectSize = yi)
+  mutate(StandardError = sqrt(vi)) %>% 
+  rename(EffectSize = yi)
 
 
 summary(MA_d$EffectSize) #explained at 18 min in the video
@@ -100,8 +111,8 @@ MA_m <- bf(EffectSize | se(StandardError) ~ 1 + (1 | Population))
 get_prior(MA_m, data =MA_d, family= gaussian())
 
 MA_prior <- c(
-  prior(normal(0,1), class = Intercept),#Sceptical, mean of 0 and how sceptical are we with the mean being 0
-  prior(normal(0, .3), class = sd) #saying the variablility up to .6 but we expect it to be more likely to be smaller then that 
+  prior(normal(0,1), class = Intercept),# Sceptical, mean of 0 and how sceptical are we with the mean being 0
+  prior(normal(0, .3), class = sd) # saying the variablility up to .6 but we expect it to be more likely to be smaller then that 
   )
 
 MA_m0 <- brm(
@@ -131,7 +142,17 @@ pp_check(MA_m1, nsamples = 100)
 summary(MA_m1)
 
 
+#Saving the values
+MA_mean <- fixed(MA_m1)[[1]]
+MA_se <- fixef(MA_m1)[[2]]
 
+MA_hetrogeneity <- 0.32
+
+# Save the models
+saveRDS(MA_m, file = "models/MA_m.rds")
+saveRDS(MA_m0, file = "models/MA_m0.rds")
+saveRDS(MA_m1, file = "models/MA_m1.rds")
+saveRDS(MA_prior, file = "models/MA_prior.rds")
 
 ```
 
@@ -143,6 +164,13 @@ Step 2: Analyse pitch variability in ASD in two new studies for which you have a
 
 ``` {r Part 2, echo=FALSE}
 
+# subset to columns we need
+test <- d %>% 
+  select(ID, Language, Pitch_Mean, Pitch_Median, Pitch_SD, Pitch_IQR, Diagnosis)
+
+# Standardize pitch IQR
+d$Pitch_IQR_s <- scale(d$Pitch_IQR)
+
 ```
 
 
@@ -153,6 +181,31 @@ Step 3: Build a regression model predicting Pitch variability from Diagnosis.
   - Evaluate model quality. Describe and plot the estimates. 
 
 ``` {r Part 3, echo=FALSE}
+
+pitch_m <- bf(Pitch_IQR_s ~ 0 + Diagnosis)
+
+get_prior(pitch_m, data = d, family = gaussian())
+
+skeptic_prior <- c(
+  prior(normal(0, 0.5), class = b),
+  prior(student_t(3, 0, 10), class = sigma)
+  )
+
+pitch_skeptic_m1 <- brm(
+  pitch_m,
+  data = d,
+  family = gaussian(),
+  prior = skeptic_prior,
+  sample_prior = "only",
+  chains = 2,
+  cores = 2
+  )
+
+pp_check(pitch_skeptic_m1, nsamples = 100)
+
+summary(pitch_skeptic_m1)
+
+saveRDS(pitch_skeptic_m1, file = "models/pitch_skeptic_m1.rds")
 
 ```
 
