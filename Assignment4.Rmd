@@ -8,6 +8,15 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+```{r loading packages}
+
+library(tidyverse)
+pacman::p_load(metafor, brms)
+
+```
+
+
 ## Assignment 4
 
 In this assignment we do the following:
@@ -24,6 +33,103 @@ Step 1: Perform a meta-analysis of pitch variability from previous studies of vo
 - You should calculate Effect size (cohen's d) and Standard Error (uncertainty in the Cohen's d) per each study, using escalc() from the metafor package (also check the livecoding intro)
 - N.B. we're only interested in getting a meta-analytic effect size for the meta-analytic prior (and not e.g. all the stuff on publication bias). See a brms tutorial here: https://vuorre.netlify.com/post/2016/09/29/meta-analysis-is-a-special-case-of-bayesian-multilevel-modeling/ The formula is EffectSize | se(StandardError) ~ 1 + (1 | Paper). Don't forget prior definition, model checking, etc.
 - Write down the results of the meta-analysis in terms of a prior for step 2.
+
+```{r}
+library(readr)  # part of tidyverse
+
+MA_d <- read_delim("Ass4_MetaAnalysisData.tsv", delim = "\t") #meta analysis data 
+
+#ASD(TD)_N - how many ASD(TD) participant
+
+#when talking about pitch there is no difference between Hz and log scale
+
+#PitchMeanASDvsTD is if it significant higher or lower or NS (not significant)
+
+#making sure all our valuables are possible to use - no one is characters by accident 
+
+MA_d <- MA_d %>%
+  mutate(
+    PitchVariabilityASD_Mean = as.numeric(PitchVariabilityASD_Mean),
+    PitchVariabilityTD_Mean = as.numeric(PitchVariabilityTD_Mean),
+    PitchVariabilityASD_SD = as.numeric(PitchVariabilityASD_SD),
+    PitchVariabilityTD_SD = as.numeric(PitchVariabilityTD_SD)
+  )
+
+# The scale is not the same, however not important since we look at it within studies   some are Hz some are SD
+
+#Making sure our dataset only contains rows where the paper is not NA 
+
+MA_d <- MA_d %>%
+  subset(!is.na(Paper))
+
+
+#Focusing on the variability in pitch
+
+MA_d <- escalc(measure = "SMD",
+               n1i = TD_N, #The number of TD in the study
+               n2i = ASD_N, #ASD paticipants in the study 
+               m1i = PitchVariabilityTD_Mean, #mean in PV for TD
+               m2i = PitchVariabilityASD_Mean, #mean in PV for ASD
+               sd1i = PitchVariabilityTD_SD, # SD in PV for TD
+               sd2i = PitchVariabilityASD_SD, #SD in PV for ASD 
+               data = MA_d,
+               slab = Paper) # if we make a plot, what should be the name 
+
+#adding new columns: yi is the effect size and vi is the varience of the effectsize
+
+#calculating the SE of the effectsize
+MA_d <- MA_d %>% 
+  mutate(
+    StandardError = sqrt(vi)
+  ) %>% rename(EffectSize = yi)
+
+
+summary(MA_d$EffectSize) #explained at 18 min in the video
+
+
+#Running an analysis 
+
+MA_m <- bf(EffectSize | se(StandardError) ~ 1 + (1 | Population))
+
+get_prior(MA_m, data =MA_d, family= gaussian())
+
+MA_prior <- c(
+  prior(normal(0,1), class = Intercept),#Sceptical, mean of 0 and how sceptical are we with the mean being 0
+  prior(normal(0, .3), class = sd) #saying the variablility up to .6 but we expect it to be more likely to be smaller then that 
+  )
+
+MA_m0 <- brm(
+  MA_m,
+  data = MA_d,
+  family = gaussian(),
+  prior = MA_prior,
+  sample_prior = "only",
+  chains = 2,
+  cores = 2
+)
+
+pp_check(MA_m0, nsamples = 100) # acceptable
+
+MA_m1 <- brm(
+  MA_m,
+  data = MA_d,
+  family = gaussian(),
+  prior = MA_prior,
+  sample_prior = T,
+  chains = 2,
+  cores = 2
+)
+
+pp_check(MA_m1, nsamples = 100)
+
+summary(MA_m1)
+
+
+
+
+```
+
+
 
 Step 2: Analyse pitch variability in ASD in two new studies for which you have access to all the trials (not just study level estimates)
 - the data is available as Ass4_data.csv. Notice there are 2 studies (language us, and language dk), multiple trials per participant, and a few different ways to measure pitch variability (if in doubt, focus on pitch IQR, interquartile range of the log of fundamental frequency)
