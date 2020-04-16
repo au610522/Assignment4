@@ -8,8 +8,8 @@ output: html_document
 library(pacman)
 pacman::p_load(tidyverse)
 
-data <- read.csv("a4_data.csv", header = TRUE)
-meta_analysis_data <- read.table(file = 'a4_MetaAnalysis_data.tsv', sep = '\t', header = TRUE)
+d <- read.csv("a4_data.csv", header = TRUE)
+MA_d <- read_delim("Ass4_MetaAnalysisData.tsv", delim = "\t")
 
 ```
 
@@ -44,8 +44,6 @@ Step 1: Perform a meta-analysis of pitch variability from previous studies of vo
 
 ```{r Part 1, echo=FALSE}
 library(readr)  # part of tidyverse
-
-MA_d <- read_delim("Ass4_MetaAnalysisData.tsv", delim = "\t") #meta analysis data 
 
 #ASD(TD)_N - how many ASD(TD) participant
 
