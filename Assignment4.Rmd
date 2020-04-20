@@ -143,7 +143,7 @@ summary(MA_m1)
 
 
 #Saving the values
-MA_mean <- fixed(MA_m1)[[1]]
+MA_mean <- fixef(MA_m1)[[1]]
 MA_se <- fixef(MA_m1)[[2]]
 
 MA_hetrogeneity <- 0.32
@@ -176,13 +176,17 @@ d$Pitch_IQR_s <- scale(d$Pitch_IQR)
 
 Step 3: Build a regression model predicting Pitch variability from Diagnosis.
   - how is the outcome distributed? (likelihood function). NB. given we are standardizing, and the meta-analysis is on that scale, gaussian is not a bad assumption. Lognormal would require us to convert the prior to that scale.
-  - how are the parameters of the likelihood distribution distributed? Which predictors should they be conditioned on? Start simple, with Diagnosis only. Add other predictors only if you have the time and energy!
+        Due to the fact that the data is scaled the data will be centered around 0
+        
+  - how are the parameters of the likelihood distribution distributed? Which predictors should they be conditioned on? Start simple, with Diagnosis only. Add other predictors only if you have the time and energy! no energy...
+  
   - use a skeptical/conservative prior for the effects of diagnosis. Remember you'll need to motivate it.
   - Evaluate model quality. Describe and plot the estimates. 
 
 ``` {r Part 3, echo=FALSE}
 
-pitch_m <- bf(Pitch_IQR_s ~ 0 + Diagnosis + (1|ID)) # Han skriver 1 + 
+pitch_m <- bf(Pitch_IQR_s ~ 0 + Diagnosis + (1|ID))
+pitch_m1 <- bf(Pitch_IQR_s ~ 0 + Language + Language:Diagnosis + (1|ID))
 
 get_prior(pitch_m, data = d, family = gaussian())
 
@@ -191,7 +195,7 @@ skeptic_prior <- c(
   prior(normal(0,0.1), class =sd),
   prior(normal(.5,.3), class = sigma))
 
-pitch_skeptic_m1 <- brm(
+skeptic_prior_check <- brm(
   pitch_m,
   data = d,
   family = gaussian(),
@@ -201,8 +205,9 @@ pitch_skeptic_m1 <- brm(
   cores = 2
   )
 
+pp_check(skeptic_prior_check, nsamples = 100)
 
-pitch_skeptic_m2 <- brm(
+pitch_skeptic_m <- brm(
   pitch_m,
   data = d,
   family = gaussian(),
@@ -212,16 +217,39 @@ pitch_skeptic_m2 <- brm(
   cores = 2
   )
 
-pp_check(pitch_skeptic_m2, nsamples = 100)
+pp_check(pitch_skeptic_m, nsamples = 100)
 
 #evaluate 
 #check if we learn something
-summary(pitch_skeptic_m2)
-plot(hypothesis(pitch_skeptic_m2, "DiagnosisTD < 0"))
-hypothesis(pitch_skeptic_m2, "DiagnosisTD < 0")
+summary(pitch_skeptic_m)
+plot(hypothesis(pitch_skeptic_m, "DiagnosisTD < 0"))
+hypothesis(pitch_skeptic_m, "DiagnosisTD < 0")
 
-saveRDS(pitch_skeptic_m2, file = "models/pitch_skeptic_m2.rds")
 
+## the complicated model
+
+get_prior(pitch_m1, data = d, family =gaussian())
+
+skeptic_prior_m1 <- c(
+  prior(normal(0, .1), class = b, coef = "Languagedk"),
+  prior(normal(0, .1), class = b, coef = "Languageus"),
+  prior(normal(0, .1), class = b, coef = "Languagedk:Diagnosis"),
+  prior(normal(0, .1), class = b, coef = "Languageus:Diagnosis"),
+  prior(normal(0, .1), class = sd),
+  prior(normal(0.5, .3), class = sigma)
+)
+
+skeptic_prior_check_m1 <- brm(
+  pitch_m1,
+  data = d,
+  family = gaussian(),
+  prior = skeptic_prior_m1,
+  sample_prior = "only",
+  chains = 2,
+  cores = 2
+  )
+
+saveRDS(pitch_skeptic_m, file = "models/pitch_skeptic_m.rds")
 
 ```
 
@@ -231,14 +259,15 @@ Step 4: Now re-run the model with the meta-analytic prior
 
 
 ``` {r Part 4, echo=FALSE}
-MA_mean = -.44
+MA_mean <- fixef(MA_m1)[[1]]
+#rounds off to -0.44
 
 informed_prior <- c(
   prior(normal(-0.44, 0.1), class = b),
   prior(normal(0,0.1), class =sd),
   prior(normal(.5,.3), class = sigma))
 
-pitch_informed_m1 <- brm(
+informed_prior_check <- brm(
   pitch_m,
   data = d,
   family = gaussian(),
@@ -248,9 +277,9 @@ pitch_informed_m1 <- brm(
   cores = 2
   )
 
-pp_check(pitch_informed_m1, nsamples = 100)
+pp_check(informed_prior_check, nsamples = 100)
 
-pitch_informed_m2 <- brm(
+pitch_informed_m <- brm(
   pitch_m,
   data = d,
   family = gaussian(),
@@ -260,10 +289,10 @@ pitch_informed_m2 <- brm(
   cores = 2
   )
 
-pp_check(pitch_informed_m2, nsamples = 100)
+pp_check(pitch_informed_m, nsamples = 100)
 #evaluate 
 #check if we learn something
-summary(pitch_skeptic_m2)
+summary(pitch_skeptic_m)
 
 ```
 
@@ -275,10 +304,12 @@ Step 5: Compare the models
 
 
 ``` {r Part 5, echo=FALSE}
-plot(hypothesis(pitch_informed_m2, "DiagnosisTD < 0"))
-plot(hypothesis(pitch_skeptic_m2, "DiagnosisTD < 0"))
+plot(hypothesis(pitch_informed_m, "DiagnosisTD < 0"))
+plot(hypothesis(pitch_skeptic_m, "DiagnosisTD < 0"))
 
-loo_model_weights(pitch_skeptic_m2, pitch_informed_m2)
+
+
+loo_model_weights(pitch_skeptic_m, pitch_informed_m)
 ```
 
 Step 6: Prepare a nice write up of the analysis and answer the questions at the top.
