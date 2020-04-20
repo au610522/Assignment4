@@ -233,8 +233,8 @@ get_prior(pitch_m1, data = d, family =gaussian())
 skeptic_prior_m1 <- c(
   prior(normal(0, .1), class = b, coef = "Languagedk"),
   prior(normal(0, .1), class = b, coef = "Languageus"),
-  prior(normal(0, .1), class = b, coef = "Languagedk:Diagnosis"),
-  prior(normal(0, .1), class = b, coef = "Languageus:Diagnosis"),
+  prior(normal(0, .1), class = b, coef = "Languagedk:DiagnosisTD"),
+  prior(normal(0, .1), class = b, coef = "Languageus:DiagnosisTD"),
   prior(normal(0, .1), class = sd),
   prior(normal(0.5, .3), class = sigma)
 )
@@ -249,7 +249,31 @@ skeptic_prior_check_m1 <- brm(
   cores = 2
   )
 
+pp_check(skeptic_prior_check_m1, nsamples = 100)
+
+pitch_skeptic_m1 <- brm(
+  pitch_m1,
+  data = d,
+  family = gaussian(),
+  prior = skeptic_prior_m1,
+  sample_prior = T,
+  chains = 2,
+  cores = 2
+  )
+
+pp_check(pitch_skeptic_m1, nsamples = 100)
+
+
 saveRDS(pitch_skeptic_m, file = "models/pitch_skeptic_m.rds")
+saveRDS(pitch_skeptic_m1, file = "models/pitch_skeptic_m1.rds")
+
+
+#Hypothesis testing
+plot(hypothesis(pitch_skeptic_m1, "Languagedk:DiagnosisTD < 0"))
+plot(hypothesis(pitch_skeptic_m1, "Languageus:DiagnosisTD < 0"))
+
+#Comparing the models
+loo_model_weights(pitch_skeptic_m, pitch_skeptic_m1)
 
 ```
 
@@ -263,12 +287,15 @@ MA_mean <- fixef(MA_m1)[[1]]
 #rounds off to -0.44
 
 informed_prior <- c(
-  prior(normal(-0.44, 0.1), class = b),
-  prior(normal(0,0.1), class =sd),
-  prior(normal(.5,.3), class = sigma))
-
+  prior(normal(-0.44, .1), class = b, coef = "Languagedk"),
+  prior(normal(-0.44, .1), class = b, coef = "Languageus"),
+  prior(normal(-0.44, .1), class = b, coef = "Languagedk:DiagnosisTD"),
+  prior(normal(-0.44, .1), class = b, coef = "Languageus:DiagnosisTD"),
+  prior(normal(0, .1), class = sd),
+  prior(normal(0.5, .3), class = sigma)
+)
 informed_prior_check <- brm(
-  pitch_m,
+  pitch_m1,
   data = d,
   family = gaussian(),
   prior = informed_prior,
@@ -280,7 +307,7 @@ informed_prior_check <- brm(
 pp_check(informed_prior_check, nsamples = 100)
 
 pitch_informed_m <- brm(
-  pitch_m,
+  pitch_m1,
   data = d,
   family = gaussian(),
   prior = informed_prior,
@@ -294,6 +321,12 @@ pp_check(pitch_informed_m, nsamples = 100)
 #check if we learn something
 summary(pitch_skeptic_m)
 
+plot(hypothesis(pitch_informed_m, "Languagedk:DiagnosisTD < 0"))
+plot(hypothesis(pitch_informed_m, "Languageus:DiagnosisTD < 0"))
+
+saveRDS(informed_prior_check, file = "models/informed_prior_check.rds")
+saveRDS(pitch_informed_m, file = "models/pitch_informed_m.rds")
+
 ```
 
 Step 5: Compare the models
@@ -304,10 +337,11 @@ Step 5: Compare the models
 
 
 ``` {r Part 5, echo=FALSE}
-plot(hypothesis(pitch_informed_m, "DiagnosisTD < 0"))
-plot(hypothesis(pitch_skeptic_m, "DiagnosisTD < 0"))
+plot(hypothesis(pitch_skeptic_m1, "Languagedk:DiagnosisTD < 0"))
+plot(hypothesis(pitch_skeptic_m1, "Languageus:DiagnosisTD < 0"))
 
-
+plot(hypothesis(pitch_skeptic_m1, "Languagedk:DiagnosisTD < 0"))
+plot(hypothesis(pitch_skeptic_m1, "Languageus:DiagnosisTD < 0"))
 
 loo_model_weights(pitch_skeptic_m, pitch_informed_m)
 ```
