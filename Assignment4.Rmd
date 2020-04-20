@@ -182,14 +182,14 @@ Step 3: Build a regression model predicting Pitch variability from Diagnosis.
 
 ``` {r Part 3, echo=FALSE}
 
-pitch_m <- bf(Pitch_IQR_s ~ 0 + Diagnosis)
+pitch_m <- bf(Pitch_IQR_s ~ 0 + Diagnosis + (1|ID)) # Han skriver 1 + 
 
 get_prior(pitch_m, data = d, family = gaussian())
 
 skeptic_prior <- c(
-  prior(normal(0, 0.5), class = b),
-  prior(student_t(3, 0, 10), class = sigma)
-  )
+  prior(normal(0, 0.1), class = b),
+  prior(normal(0,0.1), class =sd),
+  prior(normal(.5,.3), class = sigma))
 
 pitch_skeptic_m1 <- brm(
   pitch_m,
@@ -201,11 +201,27 @@ pitch_skeptic_m1 <- brm(
   cores = 2
   )
 
-pp_check(pitch_skeptic_m1, nsamples = 100)
 
-summary(pitch_skeptic_m1)
+pitch_skeptic_m2 <- brm(
+  pitch_m,
+  data = d,
+  family = gaussian(),
+  prior = skeptic_prior,
+  sample_prior = T,
+  chains = 2,
+  cores = 2
+  )
 
-saveRDS(pitch_skeptic_m1, file = "models/pitch_skeptic_m1.rds")
+pp_check(pitch_skeptic_m2, nsamples = 100)
+
+#evaluate 
+#check if we learn something
+summary(pitch_skeptic_m2)
+plot(hypothesis(pitch_skeptic_m2, "DiagnosisTD < 0"))
+hypothesis(pitch_skeptic_m2, "DiagnosisTD < 0")
+
+saveRDS(pitch_skeptic_m2, file = "models/pitch_skeptic_m2.rds")
+
 
 ```
 
@@ -215,6 +231,39 @@ Step 4: Now re-run the model with the meta-analytic prior
 
 
 ``` {r Part 4, echo=FALSE}
+MA_mean = -.44
+
+informed_prior <- c(
+  prior(normal(-0.44, 0.1), class = b),
+  prior(normal(0,0.1), class =sd),
+  prior(normal(.5,.3), class = sigma))
+
+pitch_informed_m1 <- brm(
+  pitch_m,
+  data = d,
+  family = gaussian(),
+  prior = informed_prior,
+  sample_prior = "only",
+  chains = 2,
+  cores = 2
+  )
+
+pp_check(pitch_informed_m1, nsamples = 100)
+
+pitch_informed_m2 <- brm(
+  pitch_m,
+  data = d,
+  family = gaussian(),
+  prior = informed_prior,
+  sample_prior = T,
+  chains = 2,
+  cores = 2
+  )
+
+pp_check(pitch_informed_m2, nsamples = 100)
+#evaluate 
+#check if we learn something
+summary(pitch_skeptic_m2)
 
 ```
 
@@ -226,7 +275,10 @@ Step 5: Compare the models
 
 
 ``` {r Part 5, echo=FALSE}
+plot(hypothesis(pitch_informed_m2, "DiagnosisTD < 0"))
+plot(hypothesis(pitch_skeptic_m2, "DiagnosisTD < 0"))
 
+loo_model_weights(pitch_skeptic_m2, pitch_informed_m2)
 ```
 
 Step 6: Prepare a nice write up of the analysis and answer the questions at the top.
